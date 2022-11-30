@@ -1,0 +1,26 @@
+
+server:
+  gb28181:
+    port: 5060
+    sipId: "37070000082008000001"
+    sipDomain: "3707000008"
+  media:
+    addr: "192.168.80.242"
+    port: 8080
+    streamRecvPort: 10000
+  httpPort: 6660
+
+data:
+  redis:
+    mode: single
+    address: localhost:6379
+    password: Hiscene2022
+    db: 11
+    autoPrefix: "gss:"
+  database:
+    address: "localhost:3306"
+    username: "root"
+    password: "Hiscene2022"
+    dbName: "gbsip"
+    timeout: 5
+    driver: mysql

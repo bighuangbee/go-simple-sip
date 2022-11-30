@@ -6,10 +6,11 @@ import (
 	"fmt"
 	domain2 "github.com/bighuangbee/go-simple-sip/internal/data/domain"
 	"github.com/bighuangbee/go-simple-sip/internal/sip/message"
+	"github.com/bighuangbee/go-simple-sip/pkg/tools"
 	"github.com/jart/gosip/sip"
 )
 
-//向UAC发送catalog请求
+//向UAC发送catalog
 func (this *Uas) Catalog(uacMsg *UacMsg, catalog *message.Query) error {
 
 	queryCatalog := uacMsg.msg.Copy()
@@ -17,8 +18,8 @@ func (this *Uas) Catalog(uacMsg *UacMsg, catalog *message.Query) error {
 	queryCatalog.CSeqMethod = sip.MethodMessage
 	queryCatalog.Via.Port = queryCatalog.From.Uri.Port
 	queryCatalog.Status = 0
-	queryCatalog.From.Uri.User = this.SysConf.GB28181.SipId
-	queryCatalog.From.Uri.Host = this.SysConf.GB28181.SipDomain
+	queryCatalog.From.Uri.User = this.Bootstrap.Server.GB28181.SipId
+	queryCatalog.From.Uri.Host = this.Bootstrap.Server.GB28181.SipDomain
 	queryCatalog.From.Uri.Port = 0
 	queryCatalog.To = uacMsg.msg.From
 	queryCatalog.To.Param = nil
@@ -34,13 +35,18 @@ func (this *Uas) Catalog(uacMsg *UacMsg, catalog *message.Query) error {
 	return nil
 }
 
-func (this *Uas) CatalogRespone(uacMsg *UacMsg) error {
+
+
+func (this *Uas) CatalogReceive(uacMsg *UacMsg) error {
 	payload := uacMsg.msg.Payload.Data()
 	catalogRespone := &message.CatalogResponse{}
 	message.Unmarshal(payload, catalogRespone)
 
 	if len(catalogRespone.DeviceList.Channels) > 0 {
 		c := catalogRespone.DeviceList.Channels[0]
+
+		_, port := tools.ParseAddr(uacMsg.uacAddr.String())
+
 		device := domain2.Device{
 			DeviceId:     catalogRespone.DeviceID,
 			Name:         c.Name,
@@ -51,14 +57,18 @@ func (this *Uas) CatalogRespone(uacMsg *UacMsg) error {
 			Status:      message.StatusMap(c.Status),
 			HostAddress: c.IPAddress,
 			Ip:          c.IPAddress,
-			Port:        uint16(uacMsg.uacConn.Port),
+			Port:        port,
 			//Expires:       0,
 			//Charset:       "",
 		}
+
 		this.Repo.Device.Save(context.Background(), &device)
 
 		for _, channle := range catalogRespone.DeviceList.Channels {
-			fmt.Println("0------------ ", channle.IPAddress, uacMsg.uacConn.Port)
+			//fmt.Println("0------------ ", channle.IPAddress, uacMsg.uacConn.Port)
+			ip, port := tools.ParseAddr(uacMsg.uacAddr.String())
+			fmt.Println(ip, port)
+			fmt.Println(uacMsg.uacAddr.String())
 
 			c := domain2.Channel{
 				DeviceId:     catalogRespone.DeviceID,
@@ -69,9 +79,9 @@ func (this *Uas) CatalogRespone(uacMsg *UacMsg) error {
 				//Firmware:      "",
 				//Transport:     "",
 				Status:      message.StatusMap(c.Status),
-				HostAddress: fmt.Sprintf("%s:%d", uacMsg.uacConn.IP.String(), uacMsg.uacConn.Port),
-				Ip:          uacMsg.uacConn.IP.String(),
-				Port:        uint16(uacMsg.uacConn.Port),
+				HostAddress: uacMsg.uacAddr.String(),
+				Ip:          ip,
+				Port:        port,
 				//Expires:       0,
 				//Charset:       "",
 			}
@@ -89,5 +99,5 @@ func (this *Uas) CatalogRespone(uacMsg *UacMsg) error {
 	respone.CallID = uacMsg.msg.CallID
 	respone.From = uacMsg.msg.From
 	respone.To = uacMsg.msg.To
-	return this.Transport.Write(&UacMsg{uacMsg.uacConn, respone})
+	return this.Transport.Write(&UacMsg{uacMsg.uacAddr, respone})
 }

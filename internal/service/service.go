@@ -12,7 +12,7 @@ const messagePoolSize = 1000
 
 type Service struct {
 	//系统配置
-	SysConf *config.SysConf
+	Bootstrap *config.Bootstrap
 	//rtp SSRC
 	SSRC int
 	//数据层
@@ -21,8 +21,8 @@ type Service struct {
 	Repo *model2.Repo
 }
 
-func New(sysConf *config.SysConf) *Service {
-	sipServer := &Service{SysConf: sysConf} //messagePool: make(chan *UacRequest, messagePoolSize),
+func New(sysConf *config.Bootstrap) *Service {
+	sipServer := &Service{Bootstrap: sysConf} //messagePool: make(chan *UacRequest, messagePoolSize),
 
 	sipServer.SSRC = 10
 

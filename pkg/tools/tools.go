@@ -34,3 +34,5 @@ func MD5(str string) string {
 func RepairSuff(d int, n int)string{
 	return fmt.Sprintf("%0"+strconv.Itoa(n)+"d", d)
 }
+
+

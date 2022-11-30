@@ -2,11 +2,13 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"github.com/bighuangbee/go-simple-sip/internal/config"
 	domain2 "github.com/bighuangbee/go-simple-sip/internal/data/domain"
 	"github.com/bighuangbee/go-simple-sip/internal/sip"
 	"github.com/bighuangbee/go-simple-sip/internal/sip/message"
+	"github.com/bighuangbee/go-simple-sip/pkg/tools"
 	"github.com/gin-gonic/gin"
 	"net"
 )
@@ -14,35 +16,19 @@ import (
 var sipUas *sip.Uas
 
 func main() {
-	sysConf := config.SysConf{
-		Server: &config.Server{
-			UpdPort:  5060,
-			HttpPort: 6660,
-			HttpAddr: "192.168.80.242", //
+	var flagConf string
+	flag.StringVar(&flagConf, "conf", "../conf/config.yaml", "config path, eg: -conf config.yaml")
+	flag.Parse()
 
-		},
-		GB28181: &config.GB28181{
-			SipId:     "37070000082008000001",
-			SipDomain: "3707000008",
-		},
-		Media: &config.Media{
-			Addr:           "192.168.80.242",
-			Port:           8080,
-			StreamRecvPort: 10000,
-		},
-		Database: &config.Database{
-			Address:  "localhost",
-			UserName: "root",
-			Password: "Hiscene2022",
-			DBName:   "gbsip",
-			Driver:   "mysql",
-			Timeout:  10,
-		},
+	var bc config.Bootstrap
+	if err := tools.InitConfig(flagConf, &bc); err != nil{
+		fmt.Println("InitConfig err", err)
+		return
 	}
 
-	go httpServer(sysConf.Server.HttpPort)
+	go httpServer(bc.Server.HttpPort)
 
-	sipUas = sip.NewUas(&sysConf)
+	sipUas = sip.NewUas(&bc)
 	sipUas.Run()
 }
 
@@ -73,6 +59,7 @@ func streams(c *gin.Context) {
 	})
 	if err != nil {
 		fmt.Println("GetByDeviceId:", err)
+		c.JSON(0, "")
 		return
 	}
 
@@ -80,18 +67,20 @@ func streams(c *gin.Context) {
 		channel, err := sipUas.Repo.Channel.GetByDeviceId(context.Background(), deviceId, channelId)
 		if err != nil {
 			fmt.Println(err)
+			c.JSON(0, "")
 			return
 		}
 
 		fmt.Println("channel ,", channel)
 
 
+		addr, err := net.ResolveUDPAddr("udp", channel.HostAddress)
+		if err != nil{
+			fmt.Println("net.ResolveUDPAddr", err, channel.HostAddress)
+			return
+		}
 
-
-		streamId, err := sipUas.Play(sip.NewUacMsg(&sip.UacConn{
-			IP:   net.ParseIP(channel.Ip).To4(),
-			Port: int(channel.Port),
-		}, nil), &message.PlayReq{
+		streamId, err := sipUas.Play(addr, &message.PlayReq{
 			DeviceId:  deviceId,
 			ChannelId: channelId,
 			Addr:      channel.Ip,
@@ -99,6 +88,7 @@ func streams(c *gin.Context) {
 		})
 		if err != nil {
 			fmt.Println("uasServer.Play ", err)
+			return
 		}
 
 		fmt.Println("--------------------- streamId", streamId)
@@ -114,10 +104,10 @@ func streams(c *gin.Context) {
 			Msg:        "",
 			Cseqno:     0,
 			StreamId:   streamId,
-			Hls:        fmt.Sprintf("http://%s:%d/rtp/%s/hls.m3u8", sipUas.SysConf.Media.Addr, sipUas.SysConf.Media.Port, streamId),
+				Hls:        fmt.Sprintf("http://%s:%d/rtp/%s/hls.m3u8", sipUas.Bootstrap.Server.Media.Addr, sipUas.Bootstrap.Server.Media.Port, streamId),
 			Rtmp:       "",
 			Rtsp:       "",
-			Wsflv:      fmt.Sprintf("ws://%s:%d/rtp/%s.live.flv", sipUas.SysConf.Media.Addr, sipUas.SysConf.Media.Port, streamId),
+			Wsflv:      fmt.Sprintf("ws://%s:%d/rtp/%s.live.flv", sipUas.Bootstrap.Server.Media.Addr, sipUas.Bootstrap.Server.Media.Port, streamId),
 			Stream:     0,
 		}
 

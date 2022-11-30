@@ -41,7 +41,7 @@ func NewUdpTransport(port uint16, uacMsgQueue chan *UacMsg) *UdpTransport {
 			}
 
 			uacMsgQueue <- &UacMsg{
-				uacConn: (*UacConn)(uac),
+				uacAddr: uac,
 				msg:     msg,
 			}
 		}
@@ -54,6 +54,6 @@ func NewUdpTransport(port uint16, uacMsgQueue chan *UacMsg) *UdpTransport {
 
 func (this *UdpTransport) Write(uacMsg *UacMsg) error {
 	fmt.Println(fmt.Sprintf("-------------Write:\n%s\n------Write end\n", uacMsg.msg.String()))
-	_, err := this.udpConn.WriteToUDP([]byte(uacMsg.msg.String()), (*net.UDPAddr)(uacMsg.uacConn))
+	_, err := this.udpConn.WriteTo([]byte(uacMsg.msg.String()), uacMsg.uacAddr)
 	return err
 }

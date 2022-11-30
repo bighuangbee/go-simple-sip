@@ -2,22 +2,23 @@ package sip
 
 import (
 	"github.com/jart/gosip/sip"
+	"net"
 )
 
 //User Agent Client 请求报文
 type UacRequest struct {
-	uac     *UacConn //IPC连接地址
+	uac     net.Addr //IPC连接地址
 	message []byte
 }
 
 //User Agent Client SIP信令消息
 type UacMsg struct {
-	uacConn *UacConn //IPC连接地址,User Agent
+	uacAddr net.Addr //IPC连接地址,User Agent
 	msg     *sip.Msg
 }
 
-func NewUacMsg(uacConn *UacConn, msg *sip.Msg) *UacMsg {
-	return &UacMsg{uacConn: uacConn, msg: msg}
+func NewUacMsg(uacConn net.Addr, msg *sip.Msg) *UacMsg {
+	return &UacMsg{uacAddr: uacConn, msg: msg}
 }
 
 func (this *UacRequest) ToUacMsg() (*UacMsg, error) {
@@ -25,5 +26,5 @@ func (this *UacRequest) ToUacMsg() (*UacMsg, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &UacMsg{uacConn: this.uac, msg: sipMsg}, nil
+	return &UacMsg{uacAddr: this.uac, msg: sipMsg}, nil
 }

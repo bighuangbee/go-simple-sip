@@ -9,21 +9,26 @@ import (
 	"net"
 )
 
-func (this *Uas) Play(uacMsg *UacMsg, req *message.PlayReq) (streamId string, err error) {
+func (this *Uas) Play(uacAddr net.Addr, req *message.PlayReq) (streamId string, err error) {
+	addr, err := net.ResolveUDPAddr(uacAddr.Network(), uacAddr.String())
+	if err != nil{
+		return "", err
+	}
+
 	ssrc := this.GenSSRC(1)
 
-	playSdp := sdp.New((*net.UDPAddr)(uacMsg.uacConn))
+	playSdp := sdp.New(addr)
 	playSdp.Origin = sdp.Origin{
-		User:    this.SysConf.GB28181.SipId,
-		Addr:    this.SysConf.Server.HttpAddr,
+		User:    this.Bootstrap.Server.GB28181.SipId,
+		Addr:    this.Bootstrap.Server.Media.Addr,
 		ID:      "0",
 		Version: "0",
 	}
-	playSdp.Addr = this.SysConf.Media.Addr
+	playSdp.Addr = this.Bootstrap.Server.Media.Addr
 	playSdp.Audio = nil
 	playSdp.Video = &sdp.Media{
 		Proto: "TCP/RTP/AVP",
-		Port:  this.SysConf.Media.StreamRecvPort,
+		Port:  this.Bootstrap.Server.Media.StreamRecvPort,
 		Codecs: []sdp.Codec{
 			{PT: 96, Name: "PS", Rate: 90000},
 			{PT: 98, Name: "H264", Rate: 90000},
@@ -42,10 +47,10 @@ func (this *Uas) Play(uacMsg *UacMsg, req *message.PlayReq) (streamId string, er
 	sipPlay.CSeq = 12
 	sipPlay.Request = &sip.URI{
 		User: req.ChannelId,
-		Host: this.SysConf.Server.HttpAddr,
+		Host: this.Bootstrap.Server.Media.Addr,
 	}
 
-	sipPlay.Subject = fmt.Sprintf("%s:%s,%s:%s", req.ChannelId, ssrc, this.SysConf.GB28181.SipId, ssrc)
+	sipPlay.Subject = fmt.Sprintf("%s:%s,%s:%s", req.ChannelId, ssrc, this.Bootstrap.Server.GB28181.SipId, ssrc)
 	//sipPlay.Via = uacMsg.msg.Via //branch事务ID
 	sipPlay.Via = &sip.Via{
 		Protocol:  "SIP",
@@ -77,8 +82,8 @@ func (this *Uas) Play(uacMsg *UacMsg, req *message.PlayReq) (streamId string, er
 	sipPlay.From = &sip.Addr{
 		Uri: &sip.URI{
 			Scheme: "sip",
-			User:   this.SysConf.GB28181.SipId,
-			Host:   this.SysConf.GB28181.SipDomain,
+			User:   this.Bootstrap.Server.GB28181.SipId,
+			Host:   this.Bootstrap.Server.GB28181.SipDomain,
 		},
 		Param: &sip.Param{
 			Name:  "tag",
@@ -88,7 +93,7 @@ func (this *Uas) Play(uacMsg *UacMsg, req *message.PlayReq) (streamId string, er
 	sipPlay.Contact = sipPlay.From
 
 	return message.SsrcTostreamId(ssrc), this.Transport.Write(&UacMsg{
-		uacConn: uacMsg.uacConn,
+		uacAddr: uacAddr,
 		msg:     sipPlay,
 	})
 
@@ -101,11 +106,11 @@ func (this *Uas) PlayRespone(uacMsg *UacMsg) (err error) {
 	m.Method = "ACK"
 	m.CSeqMethod = "ACK"
 	m.Payload = nil
-	m.From.Uri.User = this.SysConf.GB28181.SipId
-	m.Via.Port = this.SysConf.Server.UpdPort
+	m.From.Uri.User = this.Bootstrap.Server.GB28181.SipId
+	m.Via.Port = this.Bootstrap.Server.GB28181.Port
 
 	return this.Transport.Write(&UacMsg{
-		uacConn: uacMsg.uacConn,
+		uacAddr: uacMsg.uacAddr,
 		msg:     m,
 	})
 }

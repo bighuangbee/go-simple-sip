@@ -22,10 +22,10 @@ type Uas struct {
 	uacMsgQueue chan *UacMsg
 }
 
-func NewUas(sysConf *config.SysConf) *Uas {
+func NewUas(sysConf *config.Bootstrap) *Uas {
 	uacMsgQueue := make(chan *UacMsg, runtime.NumGoroutine() * 100)
 	return &Uas{
-		Transport: NewUdpTransport(sysConf.Server.UpdPort, uacMsgQueue),
+		Transport: NewUdpTransport(sysConf.Server.GB28181.Port, uacMsgQueue),
 		Service: service.New(sysConf),
 		uacMsgQueue: uacMsgQueue,
 	}
@@ -117,7 +117,7 @@ func (this *Uas) uacMsgHandler(uacMsg *UacMsg) (err error) {
 						//todo 认证、存储
 					}
 				case message.CmdTypeCatalog:
-					err = this.CatalogRespone(uacMsg)
+					err = this.CatalogReceive(uacMsg)
 
 				}
 			}
