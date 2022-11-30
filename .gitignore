@@ -1,0 +1,8 @@
+.DS_Store
+.vscode
+.idea
+.vscode
+config/config.dev.toml
+coverage.out
+*.swp
+logs
